@@ -1,0 +1,12 @@
+.git
+.direnv
+.venv
+__pycache__
+.env
+.pytest_cache
+.ruff_cache
+dist
+build
+result
+models
+data

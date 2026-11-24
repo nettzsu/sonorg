@@ -11,6 +11,7 @@ dependencies = [
   "python-multipart",
   "faster-whisper",
   "openai",
+  "yt-dlp[default,deno]",
 ]
 
 [project.scripts]
