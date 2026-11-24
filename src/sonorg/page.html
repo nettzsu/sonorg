@@ -1,196 +1,1015 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sonorg</title>
-<style>
-  :root {
-    color-scheme: dark;
-    --bg: #14120e;
-    --ink: #e7e1d6;
-    --dim: #9a917f;
-    --line: #2c2822;
-    --brass: #c4a574;
-    --bad: #d47a6a;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font: 16px/1.45 ui-sans-serif, system-ui, sans-serif;
-  }
-  main { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
-  header { margin-bottom: 28px; }
-  h1 { font: 600 28px/1 ui-sans-serif, system-ui, sans-serif; margin: 0 0 8px; letter-spacing: -0.03em; }
-  header p { margin: 0; color: var(--dim); max-width: 46em; }
-  form { display: grid; gap: 12px; margin: 24px 0; }
-  label { display: grid; gap: 6px; color: var(--dim); font-size: 13px; }
-  input[type=url], input[type=file] {
-    background: transparent;
-    color: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 10px 12px;
-    font: inherit;
-  }
-  button, a.button {
-    justify-self: start;
-    background: var(--brass);
-    color: #1a150f;
-    border: 0;
-    border-radius: 6px;
-    padding: 8px 14px;
-    font: 600 14px/1.2 ui-sans-serif, system-ui, sans-serif;
-    cursor: pointer;
-    text-decoration: none;
-  }
-  button:disabled { opacity: 0.5; cursor: default; }
-  #status { min-height: 1.4em; color: var(--dim); }
-  #status.error { color: var(--bad); }
-  .layout { display: grid; gap: 20px; }
-  @media (min-width: 800px) { .layout { grid-template-columns: 1fr 1fr; } }
-  article, pre {
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 14px 16px;
-    min-height: 8em;
-  }
-  article h2, .pane h2 { font: 600 13px/1 ui-sans-serif, system-ui, sans-serif; color: var(--dim); margin: 0 0 12px; }
-  .chapter { margin: 0 0 14px; }
-  .chapter button {
-    background: none;
-    color: var(--brass);
-    padding: 0;
-    font: 600 15px/1.3 ui-sans-serif, system-ui, sans-serif;
-  }
-  .chapter p, .lead { margin: 4px 0 12px; white-space: pre-wrap; }
-  pre {
-    margin: 0;
-    white-space: pre-wrap;
-    font: 13px/1.45 ui-monospace, "Iosevka Nerd Font", monospace;
-  }
-  iframe { width: 100%; aspect-ratio: 16/9; border: 0; border-radius: 8px; margin-top: 12px; background: #000; }
-  .hidden { display: none; }
-  footer { margin-top: 28px; color: var(--dim); font-size: 13px; }
-</style>
-</head>
-<body>
-<main>
-  <header>
-    <h1>sonorg</h1>
-    <p>Paste a YouTube link or drop an audio file. sonorg writes the speech up as org notes: the ideas, under ordinary headings.</p>
-  </header>
-  <form id="job">
-    <label>YouTube URL
-      <input type="url" name="url" placeholder="https://www.youtube.com/watch?v=...">
-    </label>
-    <label>or an audio file
-      <input type="file" name="file" accept="audio/*,video/*">
-    </label>
-    <button type="submit">Make notes</button>
-  </form>
-  <p id="status"></p>
-  <div class="layout hidden" id="result">
-    <section>
-      <article id="notes"><h2>Notes</h2></article>
-      <iframe id="player" class="hidden" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-    </section>
-    <section class="pane">
-      <h2>Org <a class="button" id="download" href="#">Download</a></h2>
-      <pre id="org"></pre>
-    </section>
-  </div>
-  <footer>Runs on this machine. One video is one free Gemini call. Leave billing off in AI Studio.</footer>
-</main>
-<script>
-const form = document.querySelector("#job");
-const status = document.querySelector("#status");
-const result = document.querySelector("#result");
-const notes = document.querySelector("#notes");
-const org = document.querySelector("#org");
-const player = document.querySelector("#player");
-const download = document.querySelector("#download");
-const submit = form.querySelector("button");
-
-function setStatus(text, failed) {
-  status.textContent = text || "";
-  status.classList.toggle("error", Boolean(failed));
-}
-
-function show(job) {
-  result.classList.remove("hidden");
-  org.textContent = job.org || "";
-  download.href = "/job/" + job.id + "/note.org";
-  download.download = "sonorg.org";
-  notes.replaceChildren();
-  const title = document.createElement("h2");
-  title.textContent = job.title || "Notes";
-  notes.append(title);
-  if (job.overview) {
-    const lead = document.createElement("p");
-    lead.className = "lead";
-    lead.textContent = job.overview;
-    notes.append(lead);
-  }
-  for (const chapter of job.chapters || []) {
-    const block = document.createElement("div");
-    block.className = "chapter";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = chapter.heading || "Section";
-    if (chapter.stamp) button.title = "Play from " + chapter.stamp;
-    button.addEventListener("click", () => {
-      if (!job.video_id) return;
-      player.classList.remove("hidden");
-      player.src = "https://www.youtube-nocookie.com/embed/" + job.video_id + "?start=" + Math.floor(chapter.start) + "&autoplay=1";
-    });
-    const paragraph = document.createElement("p");
-    paragraph.textContent = chapter.paragraph || "";
-    block.append(button, paragraph);
-    notes.append(block);
-  }
-  if (job.video_id) player.classList.remove("hidden");
-}
-
-async function poll(id) {
-  const response = await fetch("/job/" + id);
-  const job = await response.json();
-  if (!response.ok) {
-    setStatus(job.detail || "Lost the job.", true);
-    submit.disabled = false;
-    return;
-  }
-  if (job.status === "done") {
-    setStatus("Done.");
-    show(job);
-    submit.disabled = false;
-    return;
-  }
-  if (job.status === "error") {
-    setStatus(job.error || "Failed.", true);
-    submit.disabled = false;
-    return;
-  }
-  setStatus(job.stage || "Working");
-  setTimeout(() => poll(id), 700);
-}
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  submit.disabled = true;
-  setStatus("Starting");
-  result.classList.add("hidden");
-  const response = await fetch("/job", { method: "POST", body: new FormData(form) });
-  const body = await response.json();
-  if (!response.ok) {
-    setStatus(body.detail || "Could not start.", true);
-    submit.disabled = false;
-    return;
-  }
-  poll(body.id);
-});
-</script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f1eb" />
+    <title>sonorg — sound into something you can keep</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+      :root {
+        color-scheme: light;
+        --paper: #f4f1eb;
+        --white: #fffefa;
+        --ink: #20231f;
+        --muted: #797d75;
+        --line: #e3e1d9;
+        --green: #52694b;
+        --green-dark: #344531;
+        --lime: #d6ebaa;
+        --orange: #d5794e;
+        --shadow: 0 18px 55px #282b2010;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          15px/1.55 "DM Sans",
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .shell {
+        max-width: 1240px;
+        margin: auto;
+        padding: 0 36px;
+      }
+      .topbar {
+        height: 78px;
+        border-bottom: 1px solid #22231c12;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        text-decoration: none;
+        color: var(--ink);
+        font:
+          800 20px Manrope,
+          sans-serif;
+        letter-spacing: -1.1px;
+      }
+      .brand-mark {
+        width: 29px;
+        height: 29px;
+        border-radius: 9px;
+        background: var(--green);
+        color: var(--lime);
+        display: grid;
+        place-items: center;
+        font-size: 17px;
+        letter-spacing: 0;
+      }
+      .top-meta {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #79a46a;
+        box-shadow: 0 0 0 4px #79a46a1c;
+      }
+      .hero {
+        padding: 66px 0 34px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        gap: 30px;
+      }
+      .eyebrow,
+      .kicker {
+        font:
+          500 10px "DM Mono",
+          monospace;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--green);
+      }
+      .hero h1 {
+        font:
+          600 clamp(43px, 6vw, 72px)/1.01 Manrope,
+          sans-serif;
+        letter-spacing: -4.7px;
+        max-width: 760px;
+        margin: 17px 0 14px;
+      }
+      .hero h1 em {
+        color: var(--green);
+        font-style: normal;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        max-width: 570px;
+      }
+      .hero-note {
+        width: 150px;
+        height: 150px;
+        border: 1px solid #34453126;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        transform: rotate(9deg);
+        color: var(--green);
+        font:
+          500 11px/1.5 "DM Mono",
+          monospace;
+      }
+      .hero-note span {
+        transform: rotate(-9deg);
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(340px, 0.82fr) minmax(470px, 1.18fr);
+        gap: 18px;
+        padding-bottom: 70px;
+      }
+      .card {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+      }
+      .input-card {
+        padding: 25px;
+      }
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 22px;
+      }
+      .card-head h2 {
+        font:
+          700 17px Manrope,
+          sans-serif;
+        letter-spacing: -0.4px;
+        margin: 4px 0;
+      }
+      .step {
+        font:
+          11px "DM Mono",
+          monospace;
+        color: #a0a198;
+      }
+      .tabs {
+        display: flex;
+        border-bottom: 1px solid var(--line);
+        gap: 24px;
+        margin-bottom: 19px;
+      }
+      .tab {
+        background: none;
+        border: 0;
+        padding: 0 0 11px;
+        color: #979990;
+        font-size: 13px;
+        font-weight: 600;
+        position: relative;
+      }
+      .tab.active {
+        color: var(--ink);
+      }
+      .tab.active:after {
+        position: absolute;
+        content: "";
+        height: 2px;
+        background: var(--green);
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        border-radius: 2px;
+      }
+      .field-label {
+        display: flex;
+        justify-content: space-between;
+        color: #777a72;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .urlbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #dedfd6;
+        border-radius: 10px;
+        background: #fff;
+        padding: 0 13px;
+        transition: 0.2s;
+      }
+      .urlbox:focus-within {
+        border-color: #78916e;
+        box-shadow: 0 0 0 3px #52694b17;
+      }
+      .url-icon {
+        font-size: 17px;
+        color: #989b91;
+      }
+      .urlbox input {
+        width: 100%;
+        height: 48px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .urlbox input::placeholder {
+        color: #b4b5ad;
+      }
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        color: #b0b1a9;
+        font:
+          10px "DM Mono",
+          monospace;
+        margin: 18px 0;
+      }
+      .divider:before,
+      .divider:after {
+        content: "";
+        height: 1px;
+        flex: 1;
+        background: var(--line);
+      }
+      .dropzone {
+        min-height: 119px;
+        border: 1px dashed #d4d7ca;
+        border-radius: 11px;
+        background: #faf9f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        position: relative;
+        transition: 0.2s;
+      }
+      .dropzone.drag,
+      .dropzone:hover {
+        border-color: #7c9673;
+        background: #f5f8ef;
+      }
+      .dropzone input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .drop-inner {
+        pointer-events: none;
+      }
+      .upload-icon {
+        width: 31px;
+        height: 31px;
+        border-radius: 10px;
+        background: #edf1e7;
+        color: var(--green);
+        display: grid;
+        place-items: center;
+        margin: 0 auto 7px;
+        font-size: 17px;
+      }
+      .drop-main {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .drop-sub {
+        font-size: 10px;
+        color: #a0a198;
+        margin-top: 2px;
+      }
+      .selected-file {
+        font:
+          11px "DM Mono",
+          monospace;
+        color: var(--green);
+        margin-top: 5px;
+        max-width: 290px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .submit {
+        margin-top: 19px;
+        width: 100%;
+        height: 48px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--green);
+        color: white;
+        font-size: 13px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        transition:
+          background 0.2s,
+          transform 0.2s;
+      }
+      .submit:hover {
+        background: var(--green-dark);
+        transform: translateY(-1px);
+      }
+      .submit:disabled {
+        opacity: 0.58;
+        cursor: wait;
+        transform: none;
+      }
+      .arrow {
+        font-size: 17px;
+        line-height: 0;
+      }
+      .privacy {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        color: #96988f;
+        font-size: 10px;
+        line-height: 1.5;
+        margin-top: 13px;
+      }
+      .privacy b {
+        color: var(--green);
+        font-size: 12px;
+      }
+      .steps {
+        border-top: 1px solid var(--line);
+        margin-top: 23px;
+        padding-top: 19px;
+        display: grid;
+        gap: 12px;
+      }
+      .step-row {
+        display: grid;
+        grid-template-columns: 23px 1fr auto;
+        align-items: center;
+        gap: 9px;
+        color: #73776f;
+        font-size: 11px;
+      }
+      .step-icon {
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 7px;
+        background: #f0f1eb;
+        color: var(--green);
+        font-size: 11px;
+      }
+      .step-row small {
+        font:
+          9px "DM Mono",
+          monospace;
+        color: #aaaca3;
+      }
+      .statusline {
+        min-height: 19px;
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .statusline.error {
+        color: #b7543b;
+      }
+      .preview-card {
+        overflow: hidden;
+        min-height: 530px;
+        display: flex;
+        flex-direction: column;
+      }
+      .preview-top {
+        padding: 21px 24px 17px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+      }
+      .preview-title {
+        font:
+          700 14px Manrope,
+          sans-serif;
+      }
+      .preview-sub {
+        color: #a0a198;
+        font:
+          10px "DM Mono",
+          monospace;
+        margin-top: 2px;
+      }
+      .format {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 9px;
+        border-radius: 7px;
+        background: #f0f2eb;
+        color: var(--green);
+        font:
+          10px "DM Mono",
+          monospace;
+      }
+      .format i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #85a576;
+      }
+      .preview-content {
+        padding: 28px 32px;
+        flex: 1;
+      }
+      .empty-state {
+        height: 100%;
+        min-height: 390px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .orb {
+        width: 92px;
+        height: 92px;
+        border-radius: 28px;
+        background: #f2f2eb;
+        display: grid;
+        place-items: center;
+        position: relative;
+        margin-bottom: 21px;
+      }
+      .orb:before,
+      .orb:after {
+        content: "";
+        position: absolute;
+        border: 1px solid #8c9b7a45;
+        border-radius: 50%;
+        width: 116px;
+        height: 52px;
+        transform: rotate(-35deg);
+      }
+      .orb:after {
+        transform: rotate(35deg);
+      }
+      .orb-glyph {
+        color: var(--green);
+        font-size: 34px;
+        z-index: 1;
+      }
+      .empty-state h3 {
+        font:
+          700 19px Manrope,
+          sans-serif;
+        letter-spacing: -0.6px;
+        margin: 0 0 7px;
+      }
+      .empty-state p {
+        max-width: 290px;
+        color: #999b93;
+        font-size: 12px;
+        margin: 0;
+      }
+      .empty-hint {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-top: 20px;
+        padding: 7px 10px;
+        border-radius: 7px;
+        background: #f7f6f2;
+        color: #9a9c94;
+        font:
+          9px "DM Mono",
+          monospace;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .result-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 17px;
+      }
+      .notes-pane h2 {
+        font:
+          700 23px/1.18 Manrope,
+          sans-serif;
+        letter-spacing: -0.8px;
+        margin: 4px 0 10px;
+      }
+      .lead {
+        color: #6d7168;
+        font-size: 12px;
+        line-height: 1.7;
+        margin: 0 0 20px;
+        padding-bottom: 17px;
+        border-bottom: 1px solid var(--line);
+      }
+      .chapter {
+        margin: 0 0 16px;
+      }
+      .chapter button {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        background: none;
+        border: 0;
+        padding: 0;
+        color: var(--ink);
+        font:
+          700 13px Manrope,
+          sans-serif;
+        text-align: left;
+      }
+      .chapter button:hover {
+        color: var(--green);
+      }
+      .chapter button:before {
+        content: "↗";
+        font:
+          11px "DM Mono",
+          monospace;
+        color: #8b9b7d;
+      }
+      .chapter p {
+        font-size: 11px;
+        line-height: 1.7;
+        color: #73776e;
+        margin: 6px 0 0 19px;
+        white-space: pre-wrap;
+      }
+      .result-kicker {
+        font:
+          9px "DM Mono",
+          monospace;
+        letter-spacing: 1.2px;
+        color: #999b92;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+      .result-tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .download {
+        display: inline-flex;
+        gap: 7px;
+        align-items: center;
+        text-decoration: none;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 7px 10px;
+        color: #54594f;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .download:hover {
+        border-color: #8da081;
+        color: var(--green);
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font:
+          10px/1.7 "DM Mono",
+          monospace;
+        color: #60665b;
+        background: #f8f7f2;
+        border: 1px solid #edede6;
+        border-radius: 10px;
+        padding: 15px;
+        max-height: 450px;
+        overflow: auto;
+        margin: 0;
+      }
+      iframe {
+        width: 100%;
+        aspect-ratio: 16/9;
+        border: 0;
+        border-radius: 10px;
+        margin-top: 16px;
+        background: #111;
+      }
+      .foot {
+        border-top: 1px solid #22231c12;
+        padding: 17px 0 25px;
+        color: #999b93;
+        font-size: 10px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .foot strong {
+        color: #696e64;
+        font-weight: 600;
+      }
+      @media (max-width: 850px) {
+        .shell {
+          padding: 0 22px;
+        }
+        .hero {
+          padding: 50px 0 27px;
+        }
+        .hero h1 {
+          letter-spacing: -3px;
+        }
+        .hero-note {
+          width: 115px;
+          height: 115px;
+          font-size: 9px;
+        }
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .preview-card {
+          min-height: 440px;
+        }
+        .empty-state {
+          min-height: 330px;
+        }
+      }
+      @media (max-width: 560px) {
+        .shell {
+          padding: 0 16px;
+        }
+        .topbar {
+          height: 64px;
+        }
+        .top-meta {
+          font-size: 10px;
+        }
+        .hero {
+          padding: 43px 0 24px;
+          display: block;
+        }
+        .hero h1 {
+          font-size: 47px;
+          letter-spacing: -3px;
+        }
+        .hero p {
+          font-size: 14px;
+        }
+        .hero-note {
+          display: none;
+        }
+        .workspace {
+          gap: 13px;
+          padding-bottom: 42px;
+        }
+        .input-card {
+          padding: 20px;
+        }
+        .preview-top {
+          padding: 18px;
+        }
+        .preview-content {
+          padding: 22px 19px;
+        }
+        .result-layout {
+          grid-template-columns: 1fr;
+        }
+        .preview-card {
+          min-height: 400px;
+        }
+        .foot {
+          gap: 15px;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav class="topbar">
+        <a class="brand" href="/"><span class="brand-mark">s</span>sonorg</a>
+        <div class="top-meta">
+          <span class="live-dot"></span> private workspace
+          <span aria-hidden="true">·</span> runs on your machine
+        </div>
+      </nav>
+      <section class="hero">
+        <div>
+          <div class="eyebrow">A quieter way to keep what matters</div>
+          <h1>Sound in.<br /><em>Something to keep.</em></h1>
+          <p>
+            Turn talks, lectures and long videos into thoughtful notes you can
+            actually come back to.
+          </p>
+        </div>
+        <div class="hero-note">
+          <span>LISTEN<br />→ DISTILL<br />→ REMEMBER</span>
+        </div>
+      </section>
+      <main class="workspace">
+        <section class="card input-card">
+          <div class="card-head">
+            <div>
+              <div class="kicker">01 / Source</div>
+              <h2>Bring something to listen to</h2>
+            </div>
+            <span class="step">INPUT</span>
+          </div>
+          <form id="job">
+            <div class="tabs" aria-label="Input type">
+              <button class="tab active" type="button" data-tab="youtube">
+                YouTube link</button
+              ><button class="tab" type="button" data-tab="audio">
+                Audio file
+              </button>
+            </div>
+            <div id="url-field">
+              <label class="field-label" for="url"
+                >Video URL <span>PASTE A LINK</span></label
+              >
+              <div class="urlbox">
+                <span class="url-icon">↗</span
+                ><input
+                  id="url"
+                  type="url"
+                  name="url"
+                  placeholder="https://youtube.com/watch?v=…"
+                  autocomplete="url"
+                />
+              </div>
+            </div>
+            <div class="divider">OR UPLOAD A RECORDING</div>
+            <label class="dropzone" id="dropzone"
+              ><input type="file" name="file" accept="audio/*,video/*" /><span
+                class="drop-inner"
+                ><span class="upload-icon">↑</span
+                ><span class="drop-main"
+                  >Drop your audio here
+                  <span style="color: #a2a49a; font-weight: 400"
+                    >or browse</span
+                  ></span
+                ><span class="drop-sub">Audio or video · up to 100 MB</span
+                ><span class="selected-file hidden" id="filename"></span></span
+            ></label>
+            <button class="submit" type="submit">
+              <span id="submit-label">Make my notes</span
+              ><span class="arrow">↗</span>
+            </button>
+            <div class="privacy">
+              <b>◈</b
+              ><span
+                >Audio is processed locally when transcription is needed. The
+                transcript is sent to Gemini to write your notes; avoid private
+                recordings.</span
+              >
+            </div>
+            <div class="steps">
+              <div class="step-row">
+                <span class="step-icon">◉</span
+                ><span>Captions first, Whisper when needed</span
+                ><small>01</small>
+              </div>
+              <div class="step-row">
+                <span class="step-icon">✳</span
+                ><span>Ideas shaped into clear sections</span><small>02</small>
+              </div>
+              <div class="step-row">
+                <span class="step-icon">↧</span
+                ><span>Ready to save as an Org file</span><small>03</small>
+              </div>
+            </div>
+            <p id="status" class="statusline" aria-live="polite"></p>
+          </form>
+        </section>
+        <section class="card preview-card" id="result">
+          <div class="preview-top">
+            <div>
+              <div class="preview-title">Your listening notes</div>
+              <div class="preview-sub" id="preview-sub">
+                A little more room to think
+              </div>
+            </div>
+            <span class="format"><i></i> ORG FORMAT</span>
+          </div>
+          <div class="preview-content">
+            <div class="empty-state" id="empty">
+              <div class="orb"><span class="orb-glyph">⌁</span></div>
+              <h3>Your notes will find a shape here.</h3>
+              <p>
+                Add a source to see the main ideas, neatly gathered and ready to
+                revisit.
+              </p>
+              <span class="empty-hint"
+                >✦ &nbsp; NO RAW TRANSCRIPT. JUST THE GOOD BITS.</span
+              >
+            </div>
+            <div id="result-content" class="hidden">
+              <div class="result-tools">
+                <div class="result-kicker">THE DISTILLED VERSION</div>
+                <a class="download" id="download" href="#"
+                  >↓ &nbsp; Download .org</a
+                >
+              </div>
+              <div class="result-layout">
+                <article class="notes-pane" id="notes"></article>
+                <div>
+                  <div class="result-kicker">PLAIN TEXT / ORG</div>
+                  <pre id="org"></pre>
+                </div>
+              </div>
+              <iframe
+                id="player"
+                class="hidden"
+                title="YouTube video player"
+                allow="autoplay; encrypted-media"
+                allowfullscreen
+              ></iframe>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer class="foot">
+        <span><strong>sonorg</strong> — sound in, org out.</span
+        ><span>One recording · one Gemini call · notes that stay yours</span>
+      </footer>
+    </div>
+    <script>
+      const form = document.querySelector("#job"),
+        status = document.querySelector("#status"),
+        org = document.querySelector("#org"),
+        notes = document.querySelector("#notes"),
+        player = document.querySelector("#player"),
+        download = document.querySelector("#download"),
+        submit = form.querySelector(".submit"),
+        filename = document.querySelector("#filename"),
+        fileInput = form.querySelector("input[type=file]"),
+        dropzone = document.querySelector("#dropzone");
+      function setStatus(text, failed) {
+        status.textContent = text || "";
+        status.classList.toggle("error", Boolean(failed));
+        document.querySelector("#submit-label").textContent = failed
+          ? "Try again"
+          : text && text !== "Done."
+            ? "Working…"
+            : "Make my notes";
+      }
+      document.querySelectorAll(".tab").forEach((tab) =>
+        tab.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((item) => item.classList.toggle("active", item === tab));
+          if (tab.dataset.tab === "audio") {
+            document.querySelector("#url").value = "";
+            fileInput.click();
+          } else {
+            fileInput.value = "";
+            filename.textContent = "";
+            filename.classList.add("hidden");
+            document.querySelector("#url").focus();
+          }
+        }),
+      );
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        filename.textContent = file ? file.name : "";
+        filename.classList.toggle("hidden", !file);
+        if (file) {
+          document
+            .querySelectorAll(".tab")
+            .forEach((item) =>
+              item.classList.toggle("active", item.dataset.tab === "audio"),
+            );
+        }
+      });
+      for (const event of ["dragenter", "dragover"])
+        dropzone.addEventListener(event, (e) => {
+          e.preventDefault();
+          dropzone.classList.add("drag");
+        });
+      for (const event of ["dragleave", "drop"])
+        dropzone.addEventListener(event, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("drag");
+        });
+      dropzone.addEventListener("drop", (e) => {
+        if (e.dataTransfer.files.length) {
+          fileInput.files = e.dataTransfer.files;
+          fileInput.dispatchEvent(new Event("change"));
+        }
+      });
+      function show(job) {
+        document.querySelector("#empty").classList.add("hidden");
+        document.querySelector("#result-content").classList.remove("hidden");
+        document.querySelector("#preview-sub").textContent =
+          job.title || "Your finished notes";
+        org.textContent = job.org || "";
+        download.href = "/job/" + job.id + "/note.org";
+        download.download = "sonorg.org";
+        notes.replaceChildren();
+        const title = document.createElement("h2");
+        title.textContent = job.title || "Notes";
+        notes.append(title);
+        if (job.overview) {
+          const lead = document.createElement("p");
+          lead.className = "lead";
+          lead.textContent = job.overview;
+          notes.append(lead);
+        }
+        for (const chapter of job.chapters || []) {
+          const block = document.createElement("div");
+          block.className = "chapter";
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = chapter.heading || "Section";
+          if (chapter.stamp) button.title = "Play from " + chapter.stamp;
+          button.addEventListener("click", () => {
+            if (!job.video_id) return;
+            player.classList.remove("hidden");
+            player.src =
+              "https://www.youtube-nocookie.com/embed/" +
+              job.video_id +
+              "?start=" +
+              Math.floor(chapter.start) +
+              "&autoplay=1";
+          });
+          const paragraph = document.createElement("p");
+          paragraph.textContent = chapter.paragraph || "";
+          block.append(button, paragraph);
+          notes.append(block);
+        }
+        if (job.video_id) player.classList.remove("hidden");
+      }
+      async function poll(id) {
+        try {
+          const response = await fetch("/job/" + id),
+            job = await response.json();
+          if (!response.ok) {
+            setStatus(job.detail || "Lost the job.", true);
+            submit.disabled = false;
+            return;
+          }
+          if (job.status === "done") {
+            setStatus("Done.");
+            show(job);
+            submit.disabled = false;
+            return;
+          }
+          if (job.status === "error") {
+            setStatus(job.error || "Failed.", true);
+            submit.disabled = false;
+            return;
+          }
+          setStatus(job.stage || "Working");
+          setTimeout(() => poll(id), 800);
+        } catch {
+          setStatus("Connection interrupted. Please try again.", true);
+          submit.disabled = false;
+        }
+      }
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        setStatus("Starting");
+        document.querySelector("#empty").classList.remove("hidden");
+        document.querySelector("#result-content").classList.add("hidden");
+        try {
+          const response = await fetch("/job", {
+              method: "POST",
+              body: new FormData(form),
+            }),
+            body = await response.json();
+          if (!response.ok) {
+            setStatus(body.detail || "Could not start.", true);
+            submit.disabled = false;
+            return;
+          }
+          poll(body.id);
+        } catch {
+          setStatus("Could not reach sonorg. Is the server running?", true);
+          submit.disabled = false;
+        }
+      });
+    </script>
+  </body>
 </html>
