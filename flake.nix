@@ -72,7 +72,6 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         lib.makeBinPath (with pkgs; [
-          yt-dlp
           ffmpeg
         ]);
     in
@@ -109,7 +108,6 @@
             packages = [
               virtualenv
               pkgs.uv
-              pkgs.yt-dlp
               pkgs.ffmpeg
             ];
             env = {
@@ -136,7 +134,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         wrapped = pkgs.writeShellScriptBin "sonorg" ''
-          export PATH=${runtimePath system}:$PATH
+          export PATH=${self.packages.${system}.default}/bin:${runtimePath system}:$PATH
           export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
           exec ${self.packages.${system}.default}/bin/sonorg "$@"
         '';

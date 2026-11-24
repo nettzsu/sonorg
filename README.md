@@ -18,4 +18,4 @@ Open http://127.0.0.1:8000. `nix run . -- serve` does the same outside the shell
 
 The first Whisper run downloads the `small` model. A 10 minute file on a low-power laptop takes several minutes; captions return in seconds and are the path to record.
 
-`yt-dlp` and `ffmpeg` are on the PATH inside the devShell and the `nix run` wrapper. YouTube extraction uses the JS runtime shipped with nixpkgs `yt-dlp`.
+The Python dependency provides `yt-dlp` and its Deno runtime. Outside Nix or Docker, install the FFmpeg system tools and make sure `ffmpeg` and `ffprobe` are on `PATH` for yt-dlp post-processing. Nix and Docker provide FFmpeg for you.
