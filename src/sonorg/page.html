@@ -3,22 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f4f1eb" />
+    <meta name="theme-color" content="#11140f" />
     <title>sonorg — sound into something you can keep</title>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
       :root {
-        color-scheme: light;
-        --paper: #f4f1eb;
-        --white: #fffefa;
-        --ink: #20231f;
-        --muted: #797d75;
-        --line: #e3e1d9;
-        --green: #52694b;
-        --green-dark: #344531;
-        --lime: #d6ebaa;
-        --orange: #d5794e;
-        --shadow: 0 18px 55px #282b2010;
+        color-scheme: dark;
+        --paper: #11140f;
+        --white: #191d18;
+        --ink: #edf0e8;
+        --muted: #a0a79b;
+        --line: #2a3029;
+        --green: #b5d590;
+        --green-dark: #c5e89a;
+        --lime: #1a2416;
+        --orange: #e59a75;
+        --shadow: 0 22px 70px #00000035;
       }
       * {
         box-sizing: border-box;
@@ -129,14 +129,13 @@
         display: grid;
         place-items: center;
         text-align: center;
-        transform: rotate(9deg);
         color: var(--green);
         font:
           500 11px/1.5 "DM Mono",
           monospace;
       }
       .hero-note span {
-        transform: rotate(-9deg);
+        display: block;
       }
       .workspace {
         display: grid;
@@ -281,6 +280,9 @@
         cursor: pointer;
       }
       .drop-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         pointer-events: none;
       }
       .upload-icon {
@@ -295,15 +297,18 @@
         font-size: 17px;
       }
       .drop-main {
+        display: block;
         font-size: 12px;
         font-weight: 600;
       }
       .drop-sub {
+        display: block;
         font-size: 10px;
         color: #a0a198;
         margin-top: 2px;
       }
       .selected-file {
+        display: block;
         font:
           11px "DM Mono",
           monospace;
@@ -477,10 +482,57 @@
       .orb:after {
         transform: rotate(35deg);
       }
-      .orb-glyph {
-        color: var(--green);
-        font-size: 34px;
+      .soundwave {
+        height: 34px;
+        display: flex;
+        align-items: center;
+        gap: 3px;
         z-index: 1;
+      }
+      .soundwave i {
+        width: 3px;
+        height: 20px;
+        border-radius: 4px;
+        background: var(--green);
+        transform: scaleY(0.42);
+        transform-origin: center;
+        animation: sound-wave 850ms cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+        will-change: transform;
+        box-shadow: 0 0 9px #b5d59035;
+      }
+      .soundwave i:nth-child(1) {
+        height: 13px;
+        animation-duration: 720ms;
+      }
+      .soundwave i:nth-child(2) {
+        height: 22px;
+        animation-duration: 980ms;
+        animation-delay: 130ms;
+      }
+      .soundwave i:nth-child(3) {
+        height: 16px;
+        animation-duration: 760ms;
+        animation-delay: 240ms;
+      }
+      .soundwave i:nth-child(4) {
+        height: 31px;
+        animation-duration: 1100ms;
+        animation-delay: 70ms;
+      }
+      .soundwave i:nth-child(5) {
+        height: 20px;
+        animation-duration: 820ms;
+        animation-delay: 290ms;
+      }
+      .soundwave i:nth-child(6) {
+        height: 26px;
+        animation-duration: 1040ms;
+        animation-delay: 180ms;
+      }
+      .soundwave i:nth-child(7) {
+        height: 12px;
+        animation-duration: 680ms;
+        animation-delay: 340ms;
       }
       .empty-state h3 {
         font:
@@ -703,6 +755,242 @@
           flex-direction: column;
         }
       }
+      /* Dark palette details and motion */
+      .topbar,
+      .foot {
+        border-color: #ffffff12;
+      }
+      .brand-mark {
+        background: #b5d590;
+        color: #172014;
+      }
+      .hero-note {
+        border-color: #b5d59035;
+      }
+      .step,
+      .preview-sub {
+        color: #899184;
+      }
+      .tab {
+        color: #858d80;
+      }
+      .field-label {
+        color: #a6ad9f;
+      }
+      .urlbox {
+        border-color: #353d33;
+        background: #20251f;
+      }
+      .urlbox:focus-within {
+        border-color: #9cbd7c;
+        box-shadow: 0 0 0 3px #b5d5901b;
+      }
+      .url-icon {
+        color: #929b8c;
+      }
+      .urlbox input::placeholder {
+        color: #70796d;
+      }
+      .divider {
+        color: #7d8578;
+      }
+      .dropzone {
+        border-color: #414a3e;
+        background: #151a14;
+      }
+      .dropzone.drag,
+      .dropzone:hover {
+        border-color: #a5c783;
+        background: #20291c;
+      }
+      .upload-icon,
+      .step-icon,
+      .format {
+        background: #252d21;
+        color: #b5d590;
+      }
+      .drop-sub,
+      .step-row small {
+        color: #858d80;
+      }
+      .submit {
+        background: #b5d590;
+        color: #172014;
+      }
+      .submit:hover {
+        background: #c5e89a;
+      }
+      .privacy,
+      .chapter p {
+        color: #a0a79b;
+      }
+      .step-row {
+        color: #c0c7ba;
+      }
+      .orb,
+      .empty-hint {
+        background: #20251e;
+      }
+      .orb:before,
+      .orb:after {
+        border-color: #b5d59045;
+      }
+      .empty-state p,
+      .empty-hint,
+      .result-kicker {
+        color: #92998d;
+      }
+      .lead {
+        color: #b9c0b3;
+      }
+      .download {
+        color: #c4cbbc;
+      }
+      .download:hover {
+        border-color: #9ab77d;
+        color: #c5e89a;
+      }
+      pre {
+        color: #c2cbbb;
+        background: #141812;
+        border-color: #2a3028;
+      }
+      .foot,
+      .foot strong {
+        color: #8d9587;
+      }
+      .foot strong {
+        color: #c4cbbc;
+      }
+
+      body {
+        background-image: radial-gradient(
+          ellipse at 50% -30%,
+          #34432b42,
+          transparent 62%
+        );
+      }
+      .hero,
+      .input-card,
+      .preview-card,
+      .foot {
+        animation: rise-in 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .input-card {
+        animation-delay: 100ms;
+      }
+      .preview-card {
+        animation-delay: 180ms;
+      }
+      .hero-note {
+        animation: note-glow 5s ease-in-out infinite;
+      }
+      .orb {
+        animation: breathe 4s ease-in-out infinite;
+      }
+      .live-dot {
+        animation: glow 2.4s ease-in-out infinite;
+      }
+      .tab.active:after {
+        animation: tab-in 220ms ease-out both;
+      }
+      .submit:disabled {
+        background-image: linear-gradient(
+          100deg,
+          #b5d590 20%,
+          #e0f3c8 42%,
+          #b5d590 64%
+        );
+        background-size: 220% 100%;
+        animation: loading-sheen 1.8s linear infinite;
+      }
+      #result-content:not(.hidden) {
+        animation: reveal 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .chapter {
+        animation: rise-in 400ms ease-out both;
+      }
+      .chapter:nth-of-type(2) {
+        animation-delay: 50ms;
+      }
+      .chapter:nth-of-type(3) {
+        animation-delay: 100ms;
+      }
+      .chapter:nth-of-type(4) {
+        animation-delay: 150ms;
+      }
+      .chapter:nth-of-type(5) {
+        animation-delay: 200ms;
+      }
+
+      @keyframes rise-in {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes reveal {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.99);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes note-glow {
+        50% {
+          box-shadow: 0 0 26px #b5d59012;
+          border-color: #b5d59070;
+        }
+      }
+      @keyframes breathe {
+        50% {
+          box-shadow: 0 0 38px #b5d59012;
+        }
+      }
+      @keyframes sound-wave {
+        from {
+          transform: scaleY(0.35);
+        }
+        to {
+          transform: scaleY(1);
+        }
+      }
+      @keyframes glow {
+        50% {
+          box-shadow: 0 0 0 7px #79a46a0c;
+        }
+      }
+      @keyframes tab-in {
+        from {
+          transform: scaleX(0.25);
+          transform-origin: left;
+        }
+        to {
+          transform: scaleX(1);
+          transform-origin: left;
+        }
+      }
+      @keyframes loading-sheen {
+        to {
+          background-position: -220% 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -814,7 +1102,11 @@
           </div>
           <div class="preview-content">
             <div class="empty-state" id="empty">
-              <div class="orb"><span class="orb-glyph">⌁</span></div>
+              <div class="orb" aria-hidden="true">
+                <span class="soundwave">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </span>
+              </div>
               <h3>Your notes will find a shape here.</h3>
               <p>
                 Add a source to see the main ideas, neatly gathered and ready to
