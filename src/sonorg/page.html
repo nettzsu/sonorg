@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#11140f" />
+    <link rel="icon" type="image/png" href="/static/sonorg.png" />
     <title>sonorg — sound into something you can keep</title>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
@@ -62,16 +63,11 @@
           sans-serif;
         letter-spacing: -1.1px;
       }
-      .brand-mark {
-        width: 29px;
-        height: 29px;
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
         border-radius: 9px;
-        background: var(--green);
-        color: var(--lime);
-        display: grid;
-        place-items: center;
-        font-size: 17px;
-        letter-spacing: 0;
       }
       .top-meta {
         display: flex;
@@ -760,10 +756,6 @@
       .foot {
         border-color: #ffffff12;
       }
-      .brand-mark {
-        background: #b5d590;
-        color: #172014;
-      }
       .hero-note {
         border-color: #b5d59035;
       }
@@ -996,7 +988,9 @@
   <body>
     <div class="shell">
       <nav class="topbar">
-        <a class="brand" href="/"><span class="brand-mark">s</span>sonorg</a>
+        <a class="brand" href="/">
+          <img class="brand-icon" src="/static/sonorg.png" alt="" />sonorg
+        </a>
         <div class="top-meta">
           <span class="live-dot"></span> private workspace
           <span aria-hidden="true">·</span> runs on your machine

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from .env import load_env
 from .org import clock
@@ -15,6 +16,11 @@ from .pipeline import from_file, from_url
 load_env()
 
 app = FastAPI(title="sonorg")
+app.mount(
+    "/static",
+    StaticFiles(directory=Path(__file__).with_name("static")),
+    name="static",
+)
 _jobs: dict[str, dict] = {}
 _lock = threading.Lock()
 _LIMIT = 100 * 1024 * 1024
