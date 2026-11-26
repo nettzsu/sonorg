@@ -233,22 +233,8 @@
       .urlbox input::placeholder {
         color: #b4b5ad;
       }
-      .divider {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        color: #b0b1a9;
-        font:
-          10px "DM Mono",
-          monospace;
-        margin: 18px 0;
-      }
-      .divider:before,
-      .divider:after {
-        content: "";
-        height: 1px;
-        flex: 1;
-        background: var(--line);
+      #file-field {
+        margin-top: 4px;
       }
       .dropzone {
         min-height: 119px;
@@ -266,6 +252,10 @@
       .dropzone:hover {
         border-color: #7c9673;
         background: #f5f8ef;
+      }
+      .dropzone:focus-within {
+        outline: 2px solid #b5d590;
+        outline-offset: 3px;
       }
       .dropzone input {
         position: absolute;
@@ -492,7 +482,8 @@
         background: var(--green);
         transform: scaleY(0.42);
         transform-origin: center;
-        animation: sound-wave 850ms cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+        animation: sound-wave 850ms cubic-bezier(0.45, 0, 0.55, 1) infinite
+          alternate;
         will-change: transform;
         box-shadow: 0 0 9px #b5d59035;
       }
@@ -563,6 +554,23 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 17px;
+        align-items: start;
+      }
+      .notes-pane {
+        max-height: min(62vh, 650px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 12px;
+        scrollbar-color: #526348 #1a1e18;
+        scrollbar-width: thin;
+      }
+      .notes-pane::-webkit-scrollbar {
+        width: 7px;
+      }
+      .notes-pane::-webkit-scrollbar-thumb {
+        background: #526348;
+        border: 2px solid #191d18;
+        border-radius: 8px;
       }
       .notes-pane h2 {
         font:
@@ -1020,10 +1028,20 @@
           </div>
           <form id="job">
             <div class="tabs" aria-label="Input type">
-              <button class="tab active" type="button" data-tab="youtube">
-                YouTube link</button
-              ><button class="tab" type="button" data-tab="audio">
-                Audio file
+              <button
+                class="tab active"
+                type="button"
+                data-tab="youtube"
+                aria-pressed="true"
+              >
+                Video link</button
+              ><button
+                class="tab"
+                type="button"
+                data-tab="audio"
+                aria-pressed="false"
+              >
+                Upload file
               </button>
             </div>
             <div id="url-field">
@@ -1041,19 +1059,26 @@
                 />
               </div>
             </div>
-            <div class="divider">OR UPLOAD A RECORDING</div>
-            <label class="dropzone" id="dropzone"
-              ><input type="file" name="file" accept="audio/*,video/*" /><span
-                class="drop-inner"
-                ><span class="upload-icon">↑</span
-                ><span class="drop-main"
-                  >Drop your audio here
-                  <span style="color: #a2a49a; font-weight: 400"
-                    >or browse</span
-                  ></span
-                ><span class="drop-sub">Audio or video · up to 100 MB</span
-                ><span class="selected-file hidden" id="filename"></span></span
-            ></label>
+            <div id="file-field" class="hidden">
+              <div class="field-label">
+                <span>Audio or video</span><span>UP TO 100 MB</span>
+              </div>
+              <label class="dropzone" id="dropzone"
+                ><input type="file" name="file" accept="audio/*,video/*" /><span
+                  class="drop-inner"
+                  ><span class="upload-icon">↑</span
+                  ><span class="drop-main"
+                    >Drop a file here
+                    <span style="color: #a2a49a; font-weight: 400"
+                      >or browse</span
+                    ></span
+                  ><span class="drop-sub">MP3, WAV, M4A, MP4 and more</span
+                  ><span
+                    class="selected-file hidden"
+                    id="filename"
+                  ></span></span
+              ></label>
+            </div>
             <button class="submit" type="submit">
               <span id="submit-label">Make my notes</span
               ><span class="arrow">↗</span>
@@ -1150,7 +1175,11 @@
         submit = form.querySelector(".submit"),
         filename = document.querySelector("#filename"),
         fileInput = form.querySelector("input[type=file]"),
-        dropzone = document.querySelector("#dropzone");
+        dropzone = document.querySelector("#dropzone"),
+        urlInput = document.querySelector("#url"),
+        urlField = document.querySelector("#url-field"),
+        fileField = document.querySelector("#file-field"),
+        tabs = [...document.querySelectorAll(".tab")];
       function setStatus(text, failed) {
         status.textContent = text || "";
         status.classList.toggle("error", Boolean(failed));
@@ -1160,20 +1189,28 @@
             ? "Working…"
             : "Make my notes";
       }
-      document.querySelectorAll(".tab").forEach((tab) =>
+      function setInputMode(mode) {
+        const isFile = mode === "audio";
+        urlField.classList.toggle("hidden", isFile);
+        fileField.classList.toggle("hidden", !isFile);
+        tabs.forEach((tab) => {
+          const active = tab.dataset.tab === mode;
+          tab.classList.toggle("active", active);
+          tab.setAttribute("aria-pressed", String(active));
+        });
+        if (isFile) {
+          urlInput.value = "";
+        } else {
+          fileInput.value = "";
+          filename.textContent = "";
+          filename.classList.add("hidden");
+        }
+      }
+      tabs.forEach((tab) =>
         tab.addEventListener("click", () => {
-          document
-            .querySelectorAll(".tab")
-            .forEach((item) => item.classList.toggle("active", item === tab));
-          if (tab.dataset.tab === "audio") {
-            document.querySelector("#url").value = "";
-            fileInput.click();
-          } else {
-            fileInput.value = "";
-            filename.textContent = "";
-            filename.classList.add("hidden");
-            document.querySelector("#url").focus();
-          }
+          if (tab.classList.contains("active")) return;
+          setInputMode(tab.dataset.tab);
+          if (tab.dataset.tab === "youtube") urlInput.focus();
         }),
       );
       fileInput.addEventListener("change", () => {
@@ -1181,11 +1218,9 @@
         filename.textContent = file ? file.name : "";
         filename.classList.toggle("hidden", !file);
         if (file) {
-          document
-            .querySelectorAll(".tab")
-            .forEach((item) =>
-              item.classList.toggle("active", item.dataset.tab === "audio"),
-            );
+          setInputMode("audio");
+          filename.textContent = file.name;
+          filename.classList.remove("hidden");
         }
       });
       for (const event of ["dragenter", "dragover"])
