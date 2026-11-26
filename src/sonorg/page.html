@@ -136,6 +136,7 @@
       .workspace {
         display: grid;
         grid-template-columns: minmax(340px, 0.82fr) minmax(470px, 1.18fr);
+        align-items: start;
         gap: 18px;
         padding-bottom: 70px;
       }
@@ -256,6 +257,23 @@
       .dropzone:focus-within {
         outline: 2px solid #b5d590;
         outline-offset: 3px;
+      }
+      .source-preview {
+        margin-top: 16px;
+      }
+      .source-preview-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 7px;
+        color: #92998d;
+        font:
+          9px "DM Mono",
+          monospace;
+        letter-spacing: 1px;
+      }
+      .source-preview iframe {
+        margin-top: 0;
       }
       .dropzone input {
         position: absolute;
@@ -394,6 +412,12 @@
         min-height: 530px;
         display: flex;
         flex-direction: column;
+      }
+      .preview-card.has-result {
+        min-height: 0;
+      }
+      .preview-card.has-result .preview-content {
+        flex: initial;
       }
       .preview-top {
         padding: 21px 24px 17px;
@@ -1059,6 +1083,17 @@
                 />
               </div>
             </div>
+            <div id="source-preview" class="source-preview hidden">
+              <div class="source-preview-label">
+                <span>VIDEO SOURCE</span><span>YOUTUBE</span>
+              </div>
+              <iframe
+                id="player"
+                title="YouTube video preview"
+                allow="autoplay; encrypted-media"
+                allowfullscreen
+              ></iframe>
+            </div>
             <div id="file-field" class="hidden">
               <div class="field-label">
                 <span>Audio or video</span><span>UP TO 100 MB</span>
@@ -1149,13 +1184,6 @@
                   <pre id="org"></pre>
                 </div>
               </div>
-              <iframe
-                id="player"
-                class="hidden"
-                title="YouTube video player"
-                allow="autoplay; encrypted-media"
-                allowfullscreen
-              ></iframe>
             </div>
           </div>
         </section>
@@ -1170,12 +1198,14 @@
         status = document.querySelector("#status"),
         org = document.querySelector("#org"),
         notes = document.querySelector("#notes"),
+        previewCard = document.querySelector(".preview-card"),
         player = document.querySelector("#player"),
         download = document.querySelector("#download"),
         submit = form.querySelector(".submit"),
         filename = document.querySelector("#filename"),
         fileInput = form.querySelector("input[type=file]"),
         dropzone = document.querySelector("#dropzone"),
+        sourcePreview = document.querySelector("#source-preview"),
         urlInput = document.querySelector("#url"),
         urlField = document.querySelector("#url-field"),
         fileField = document.querySelector("#file-field"),
@@ -1189,6 +1219,55 @@
             ? "Working…"
             : "Make my notes";
       }
+      function youtubeVideoId(value) {
+        try {
+          const url = new URL(value);
+          const host = url.hostname.toLowerCase().replace(/^www\./, "");
+          let id = null;
+          if (host === "youtu.be") {
+            id = url.pathname.split("/").filter(Boolean)[0];
+          } else if (
+            ["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)
+          ) {
+            if (url.pathname === "/watch") {
+              id = url.searchParams.get("v");
+            } else {
+              id = url.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/)?.[1];
+            }
+          }
+          return id && /^[\w-]{11}$/.test(id) ? id : null;
+        } catch {
+          return null;
+        }
+      }
+      function hideSourcePreview() {
+        sourcePreview.classList.add("hidden");
+        player.removeAttribute("src");
+        delete player.dataset.videoId;
+      }
+      function setVideo(videoId, start = null, autoplay = false) {
+        if (!videoId) return;
+        const query = new URLSearchParams();
+        if (start !== null) query.set("start", String(start));
+        if (autoplay) query.set("autoplay", "1");
+        const params = query.toString();
+        const suffix = params ? "?" + params : "";
+        const src =
+          "https://www.youtube-nocookie.com/embed/" + videoId + suffix;
+        if (player.getAttribute("src") !== src) player.src = src;
+        player.dataset.videoId = videoId;
+        sourcePreview.classList.remove("hidden");
+      }
+      function updateSourcePreview() {
+        const activeTab = tabs.find((tab) => tab.classList.contains("active"));
+        if (activeTab?.dataset.tab !== "youtube") {
+          hideSourcePreview();
+          return;
+        }
+        const videoId = youtubeVideoId(urlInput.value.trim());
+        if (videoId) setVideo(videoId);
+        else hideSourcePreview();
+      }
       function setInputMode(mode) {
         const isFile = mode === "audio";
         urlField.classList.toggle("hidden", isFile);
@@ -1200,10 +1279,12 @@
         });
         if (isFile) {
           urlInput.value = "";
+          hideSourcePreview();
         } else {
           fileInput.value = "";
           filename.textContent = "";
           filename.classList.add("hidden");
+          updateSourcePreview();
         }
       }
       tabs.forEach((tab) =>
@@ -1213,6 +1294,7 @@
           if (tab.dataset.tab === "youtube") urlInput.focus();
         }),
       );
+      urlInput.addEventListener("input", updateSourcePreview);
       fileInput.addEventListener("change", () => {
         const file = fileInput.files[0];
         filename.textContent = file ? file.name : "";
@@ -1240,6 +1322,7 @@
         }
       });
       function show(job) {
+        previewCard.classList.add("has-result");
         document.querySelector("#empty").classList.add("hidden");
         document.querySelector("#result-content").classList.remove("hidden");
         document.querySelector("#preview-sub").textContent =
@@ -1266,20 +1349,16 @@
           if (chapter.stamp) button.title = "Play from " + chapter.stamp;
           button.addEventListener("click", () => {
             if (!job.video_id) return;
-            player.classList.remove("hidden");
-            player.src =
-              "https://www.youtube-nocookie.com/embed/" +
-              job.video_id +
-              "?start=" +
-              Math.floor(chapter.start) +
-              "&autoplay=1";
+            setVideo(job.video_id, Math.floor(chapter.start), true);
           });
           const paragraph = document.createElement("p");
           paragraph.textContent = chapter.paragraph || "";
           block.append(button, paragraph);
           notes.append(block);
         }
-        if (job.video_id) player.classList.remove("hidden");
+        if (job.video_id) {
+          setVideo(job.video_id);
+        }
       }
       async function poll(id) {
         try {
@@ -1312,6 +1391,8 @@
         event.preventDefault();
         submit.disabled = true;
         setStatus("Starting");
+        previewCard.classList.remove("has-result");
+        updateSourcePreview();
         document.querySelector("#empty").classList.remove("hidden");
         document.querySelector("#result-content").classList.add("hidden");
         try {
