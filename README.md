@@ -10,6 +10,9 @@ Paste a YouTube URL or drop an audio file. Captions are the source when the vide
 
 The writing is one call to `gemini-4-hydrogen` on the free tier, with reasoning effort `low` and no tools. Create a key at [Google AI Studio](https://aistudio.google.com/apikey) and leave billing off, then put it in `.env`. On the free tier Google may use that transcript to improve its products, so keep private recordings off it.
 
+
+The first Whisper run downloads the `small` model. A 10 minute file on a low-power laptop takes several minutes; videos with captions usually process much faster.
+
 ## Run with Nix
 
 ```bash
@@ -56,5 +59,3 @@ docker run --rm \
 ```
 
 Open <http://127.0.0.1:8000>. The image includes FFmpeg and the Python dependencies. The named volume keeps Whisper's downloaded model between container runs. The server has no authentication; keep the port bound to localhost unless you add access controls.
-
-The first Whisper run downloads the `small` model. A 10 minute file on a low-power laptop takes several minutes; videos with captions usually process much faster.
