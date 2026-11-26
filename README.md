@@ -1,6 +1,8 @@
-<img width="111" height="111" alt="image" src="assets/sonorg.png" />
+<p align="center">
+  <img width="111" src="assets/sonorg.png" />
+</p>
 
-# sonorg
+<h1 align="center">sonorg</h1>
 
 sonorg writes a speech up as an org file. The name is *sonus* + *org*: sound in, org out.
 
